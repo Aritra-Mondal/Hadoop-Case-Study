@@ -1,0 +1,69 @@
+1. Copy the stocks and dividends files into HDFS location of your choice. 
+
+hadoop fs -copyFromLocal dividends.txt /user/hirwuser2467/tables/dividends
+hadoop fs -copyFromLocal stocks.txt /user/hirwuser2467/tables/stocks
+
+
+2. Create 'Stocks' and ‘Dividends’ tables as Hive managed tables using tab as field separator. 
+
+
+hive> CREATE TABLE IF NOT EXISTS stocks (
+exch string,
+symbol string,
+data string,
+open float,
+high float,
+low float,
+close float,
+volume int,
+adjclose float)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t';
+
+hive> DESCRIBE FORMATTED stocks;
+
+hive> CREATE TABLE IF NOT EXISTS dividends (
+exch STRING,
+symbol STRING,
+data STRING,
+dividend FLOAT)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t';
+
+hive> DESCRIBE FORMATTED stocks;
+
+3. Load the above files into the managed tables created in Step 2 using appropriate format. 
+
+
+hive> LOAD DATA INPATH 'tables/stocks/stocks.txt' INTO TABLE stocks;
+hive> LOAD DATA INPATH 'tables/stocks/dividends.txt' INTO TABLE dividends;
+
+
+
+4. create 'StocksBucket' table as Hive bucketed table clustered by stocksymbol into 5 buckets. Load the stocks data into the bucketed table from 
+the managed table created in step 3. 
+
+CREATE TABLE IF NOT EXISTS StocksBucket (
+exch STRING,
+symbol STRING,
+data STRING,
+open FLOAT,
+high FLOAT,
+low FLOAT,
+close FLOAT,
+volume INT,
+adjclose FLOAT)
+CLUSTERED BY (symbol) INTO 5 BUCKETS
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';
+
+SET hive.enforce.bucketing = true;
+
+INSERT OVERWRITE TABLE StocksBucket
+SELECT * FROM stocks;
+
+SELECT * FROM StocksBucket TABLESAMPLE(BUCKET 3 OUT OF 5 ON symbol) s;
+
+5. Create a SparkSQL program to load 'stocks' and 'dividends' data into two 
+different dataframes and create a new dataframe that contains the 
+following data fields (shown below) and save it to a CSV file. 
+ New CSV File Data: Exchange, Symbol, AverageDividend, 
+AverageClosingPrice, AverageVolume 
+
